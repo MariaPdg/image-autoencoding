@@ -56,3 +56,27 @@ class GreyToColor(object):
 
         return out_image
 
+
+class Food101Dataloader(object):
+
+    def __init__(self, data_dir, img_names, transform=None):
+        """
+        The constructor to initialized paths to Food-101 images
+        :param data_dir: directory to images
+        :params: img_names from meta data
+        :param transform: image transformations
+        """
+        self.transform = transform
+        self.image_names = [os.path.join(data_dir, img) for img in img_names]
+
+    def __len__(self):
+        return len(self.image_names)
+
+    def __getitem__(self, idx):
+
+        image = Image.open(self.image_names[idx].split('\n')[0] + '.jpg')
+
+        if self.transform:
+            image = self.transform(image)
+
+        return image
