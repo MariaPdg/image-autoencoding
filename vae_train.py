@@ -197,6 +197,7 @@ if __name__ == "__main__":
     model = VAE(device=device, z_size=args.latent_dim).to(device)
 
     if args.pretrained_gan is not None and os.path.exists(pretrained_model_dir.replace(".pth", ".csv")):
+
         logging.info('Load pretrained model')
         model_dir = pretrained_model_dir.replace(".pth", '_{}.pth'.format(args.load_epoch))
         model.load_state_dict(torch.load(model_dir))
@@ -264,9 +265,16 @@ if __name__ == "__main__":
 
             model.train()
 
-            batch_size = len(data_batch)
+            if args.dataset == 'coco':
+                batch_size = len(data_batch)
 
-            x = Variable(data_batch, requires_grad=False).float().to(device)
+                x = Variable(data_batch, requires_grad=False).float().to(device)
+
+            elif args.dataset == 'food-101':
+                batch_size = len(data_batch['image'])
+
+                x = Variable(data_batch['image'], requires_grad=False).float().to(device)
+                labels = data_batch['label']
 
             # Take model predictions/reconstruction
             x_tilde, x_p, mus, log_variances, z_p = model(x)
@@ -288,6 +296,7 @@ if __name__ == "__main__":
             # VAE loss
             if args.mode == 'vae':
                 loss_encoder = (1 / batch_size) * torch.sum(kld) + torch.sum(recon_mse)
+                # loss_encoder = torch.sum(kld) + torch.sum(recon_mse)
                 loss_decoder = torch.sum(args.lambda_mse * recon_mse)
 
             # Register mean values
@@ -345,7 +354,7 @@ if __name__ == "__main__":
             gt_dir = os.path.join(images_dir, 'epoch_' + str(idx_epoch) + '_ground_truth_' + 'grid')
             plt.savefig(gt_dir)
 
-            # Reconstructed
+            # Reconstructed images
             fig, ax = plt.subplots(figsize=(10, 10))
             ax.set_xticks([])
             ax.set_yticks([])
@@ -353,13 +362,33 @@ if __name__ == "__main__":
             output_dir = os.path.join(images_dir, 'epoch_' + str(idx_epoch) + '_output_' + 'grid')
             plt.savefig(output_dir)
 
+            # Visualize latent space for training set
+            plt.figure(figsize=(10, 6))
+            plt.scatter(mus.cpu().detach()[..., 0], mus.cpu().detach()[..., 1], c=labels, cmap='rainbow')
+            plt.colorbar()
+            output_dir = os.path.join(images_dir, 'epoch_' + str(idx_epoch) + '_latent')
+            plt.savefig(output_dir)
+            plt.show()
+
         logging.info('Evaluation')
 
         for batch_idx, data_batch in enumerate(dataloader_valid):
 
             model.eval()
-            data_in = Variable(data_batch, requires_grad=False).float().to(device)
-            data_target = Variable(data_batch, requires_grad=False).float().to(device)
+
+            if args.dataset == 'coco':
+                batch_size = len(data_batch)
+
+                data_in = Variable(data_batch, requires_grad=False).float().to(device)
+                data_target = Variable(data_batch, requires_grad=False).float().to(device)
+
+            elif args.dataset == 'food-101':
+                batch_size = len(data_batch['image'])
+
+                data_in = Variable(data_batch['image'], requires_grad=False).float().to(device)
+                data_target = Variable(data_batch['image'], requires_grad=False).float().to(device)
+                labels = data_batch['label']
+
             out = model(data_in)
 
             # Validation metrics for the first validation batch
@@ -385,6 +414,15 @@ if __name__ == "__main__":
                 os.makedirs(os.path.join(images_dir, 'random'))
 
             out = out.data.cpu()
+
+            # Visualize latent space for validation set
+            mus, var = model.encoder(data_in)
+            plt.figure(figsize=(10, 6))
+            plt.scatter(mus.cpu().detach()[..., 0], mus.cpu().detach()[..., 1], c=labels, cmap='rainbow')
+            plt.colorbar()
+            output_dir = os.path.join(images_dir, 'epoch_' + str(idx_epoch) + '_latent')
+            plt.savefig(output_dir)
+            plt.show()
 
             if idx_epoch == 0:
                 fig, ax = plt.subplots(figsize=(10, 10))
@@ -452,7 +490,7 @@ if __name__ == "__main__":
             # only for one batch
             break
 
-        if not idx_epoch % 20 and not DEBUG:
+        if not idx_epoch % 10:
             torch.save(model.state_dict(), saving_name.replace('.pth', '_' + str(idx_epoch) + '.pth'))
             logging.info('Saving model')
 

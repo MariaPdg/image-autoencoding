@@ -10,8 +10,8 @@ image_size = 64
 latent_dim = 128
 
 data_split = 0.2
-batch_size = 64
-learning_rate = 0.0001
+batch_size = 512
+learning_rate = 0.001
 weight_decay = 1e-7
 n_epochs = 100
 num_workers = 4

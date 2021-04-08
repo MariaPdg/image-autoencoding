@@ -2,6 +2,7 @@ import os
 import torch
 from PIL import Image
 from os import listdir
+from sklearn import preprocessing
 
 
 class CocoDataloader(object):
@@ -68,6 +69,12 @@ class Food101Dataloader(object):
         """
         self.transform = transform
         self.image_names = [os.path.join(data_dir, img) for img in img_names]
+        self.labels = [img.split('/')[0] for img in img_names]
+
+        # Transform labels to numbers
+        le = preprocessing.LabelEncoder()
+        le.fit(self.labels)
+        self.labels = le.transform(self.labels)
 
     def __len__(self):
         return len(self.image_names)
@@ -75,8 +82,11 @@ class Food101Dataloader(object):
     def __getitem__(self, idx):
 
         image = Image.open(self.image_names[idx].split('\n')[0] + '.jpg')
+        label = self.labels[idx]
 
         if self.transform:
             image = self.transform(image)
 
-        return image
+        sample = {'image': image, 'label': label}
+
+        return sample

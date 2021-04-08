@@ -11,7 +11,7 @@ coco_test_data = 'coco_test2017/test2017'
 
 # FOOD-101 dataset
 dataset = 'food-101'
-# data_root = 'data_test/food-101/'
+# data_root = 'data_test/'
 images_data = 'images'
 meta_data = 'meta'
 
