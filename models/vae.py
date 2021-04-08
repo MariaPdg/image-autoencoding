@@ -5,37 +5,35 @@ from torch.autograd import Variable
 import configs.models_config as config
 
 
-# Encoder block
 class EncoderBlock(nn.Module):
+
+    """CNN-based encoder block"""
 
     def __init__(self, channel_in, channel_out):
         super(EncoderBlock, self).__init__()
-        # convolution to halve the dimensions
+
         self.conv = nn.Conv2d(in_channels=channel_in, out_channels=channel_out, kernel_size=config.kernel_size,
                               padding=config.padding, stride=config.stride,
                               bias=False)
         self.bn = nn.BatchNorm2d(num_features=channel_out, momentum=0.9)
 
     def forward(self, ten, out=False, t=False):
-        # here we want to be able to take an intermediate output for reconstruction error
-        if out:
-            ten = self.conv(ten)
-            ten_out = ten
-            ten = self.bn(ten)
-            ten = F.relu(ten, False)
-            return ten, ten_out
-        else:
-            ten = self.conv(ten)
-            ten = self.bn(ten)
-            ten = F.relu(ten, True)
-            return ten
+
+        ten = self.conv(ten)
+        ten = self.bn(ten)
+        ten = F.relu(ten, True)
+
+        return ten
 
 
-# Decoder block
 class DecoderBlock(nn.Module):
+
+    """CNN-based decoder block"""
+
     def __init__(self, channel_in, channel_out, out=False):
         super(DecoderBlock, self).__init__()
-        # transpose convolution to double the dimensions
+
+        # Settings for settings from different papers
         if out:
             self.conv = nn.ConvTranspose2d(channel_in, channel_out, kernel_size=config.kernel_size, padding=config.padding,
                                            stride=config.stride, output_padding=1,
@@ -55,8 +53,12 @@ class DecoderBlock(nn.Module):
 
 
 class Encoder(nn.Module):
+
+    """ VAE-based encoder"""
+
     def __init__(self, channel_in=3, z_size=128):
         super(Encoder, self).__init__()
+
         self.size = channel_in
         layers_list = []
         for i in range(3):
@@ -72,11 +74,19 @@ class Encoder(nn.Module):
         self.l_var = nn.Linear(in_features=config.fc_output, out_features=z_size)
 
     def forward(self, ten):
+
+        """
+        :param ten: input image
+        :return: mu: mean value
+        :return: logvar: log of variance for numerical stability
+        """
+
         ten = self.conv(ten)
         ten = ten.view(len(ten), -1)
         ten = self.fc(ten)
         mu = self.l_mu(ten)
         logvar = self.l_var(ten)
+
         return mu, logvar
 
     def __call__(self, *args, **kwargs):
@@ -85,8 +95,11 @@ class Encoder(nn.Module):
 
 class Decoder(nn.Module):
 
+    """ VAE-based decoder"""
+
     def __init__(self, z_size, size):
         super(Decoder, self).__init__()
+
         self.fc = nn.Sequential(nn.Linear(in_features=z_size, out_features=config.fc_input * config.fc_input * size, bias=False),
                                 nn.BatchNorm1d(num_features=config.fc_input * config.fc_input * size, momentum=0.9),
                                 nn.ReLU(True))
@@ -106,9 +119,14 @@ class Decoder(nn.Module):
         self.conv = nn.Sequential(*layers_list)
 
     def forward(self, ten):
+        """
+        :param ten: re-parametrized latent variable
+        :return: reconstructed image
+        """
         ten = self.fc(ten)
         ten = ten.view(len(ten), -1, config.fc_input, config.fc_input)
         ten = self.conv(ten)
+
         return ten
 
     def __call__(self, *args, **kwargs):
@@ -117,19 +135,21 @@ class Decoder(nn.Module):
 
 class VAE(nn.Module):
 
+    """VAE model: encoder + decoder + re-parametrization layer"""
+
     def __init__(self, device, z_size=128):
         super(VAE, self).__init__()
-        # latent space size
-        self.z_size = z_size
+
+        self.z_size = z_size  # latent space size
         self.encoder = Encoder(z_size=self.z_size).to(device)
-        # self.encoder = ResNetEncoder(z_size=self.z_size).to(device)
         self.decoder = Decoder(z_size=self.z_size, size=self.encoder.size).to(device)
-        # self-defined function to init the parameters
         self.init_parameters()
         self.device = device
 
     def init_parameters(self):
-        # just explore the network, find every weight and bias matrix and fill it
+
+        """Glorot initialization"""
+
         for m in self.modules():
             if isinstance(m, (nn.Conv2d, nn.ConvTranspose2d, nn.Linear)):
                 if hasattr(m, "weight") and m.weight is not None and m.weight.requires_grad:
@@ -138,8 +158,12 @@ class VAE(nn.Module):
                     nn.init.constant(m.bias, 0.0)
 
     def reparameterize(self, mu, logvar):
+
+        """ Re-parametrization trick"""
+
         logvar = logvar.mul(0.5).exp_()
         eps = Variable(logvar.data.new(logvar.size()).normal_())
+
         return eps.mul(logvar).add_(mu)
 
     def forward(self, x, gen_size=10):
@@ -148,19 +172,24 @@ class VAE(nn.Module):
             x = Variable(x).to(self.device)
 
         if self.training:
+
             mus, log_variances = self.encoder(x)
             z = self.reparameterize(mus, log_variances)
             x_tilde = self.decoder(z)
 
+            # generate from random latent variable
             z_p = Variable(torch.randn(len(x), self.z_size).to(self.device), requires_grad=True)
             x_p = self.decoder(z_p)
 
             return x_tilde, x_p, mus, log_variances, z_p
+
         else:
+
             if x is None:
-                z_p = Variable(torch.randn(gen_size, self.z_size).to(self.device), requires_grad=False)  # just sample and decode
+                z_p = Variable(torch.randn(gen_size, self.z_size).to(self.device), requires_grad=False)
                 x_p = self.decoder(z_p)
                 return x_p
+
             else:
                 mus, log_variances = self.encoder(x)
                 z = self.reparameterize(mus, log_variances)
@@ -173,10 +202,21 @@ class VAE(nn.Module):
     @staticmethod
     def loss(x, x_tilde, mus, variances):
 
-        # reconstruction error, not used for the loss but useful to evaluate quality
+        """
+        VAE loss: reconstruction error + KL divergence
+
+        :param x: ground truth image
+        :param x_tilde: reconstruction from the decoder
+        :param mus: mean value from the encoder
+        :param variances: log var from the encoder
+        :return: mse: reconstruction error
+        :return: kld: kl divergence
+        """
+
+        # reconstruction error
         mse = 0.5 * (x.view(len(x), -1) - x_tilde.view(len(x_tilde), -1)) ** 2
 
-        # kl-divergence
+        # kl divergence
         kld = -0.5 * torch.sum(-variances.exp() - torch.pow(mus, 2) + variances + 1, 1)
 
         return mse, kld

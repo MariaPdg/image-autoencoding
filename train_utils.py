@@ -13,11 +13,11 @@ def norm_image_prediction(pred, mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0
     """
     Normalizes predicted images
 
-    @param pred: tensor [batch_size x channels x width x height]
+    :param pred: tensor [batch_size x channels x width x height]
             Predicted image
-    @param mean: mean values for 3 channels
-    @param std: std values  for 3 channels
-    @return: normalized predicted image
+    :param mean: mean values for 3 channels
+    :param std: std values  for 3 channels
+    :return: normalized predicted image
     """
     norm_img = pred.detach().clone()  # deep copy of tensor
     for i in range(3):
@@ -30,11 +30,11 @@ def denormalize_image(pred, mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225
     """
        Denormalizes predicted images
 
-       @param pred: tensor [batch_size x channels x width x height]
+       :param pred: tensor [batch_size x channels x width x height]
                Predicted image
-       @param mean: mean values for 3 channels
-       @param std: std values  for 3 channels
-       @return: predicted images w/o normalization
+       :param mean: mean values for 3 channels
+       :param std: std values  for 3 channels
+       :return: predicted images w/o normalization
        """
 
     denorm_img = pred.detach().clone()  # deep copy of tensor
@@ -55,11 +55,11 @@ class PearsonCorrelation(nn.Module):
 
     def forward(self, y_pred, y_true):
         """
-        @param y_pred: tensor [batch_size x channels x width x height]
+        :param y_pred: tensor [batch_size x channels x width x height]
             Predicted image
-        @param y_true: tensor [batch_size x channels x width x height]
+        :param y_true: tensor [batch_size x channels x width x height]
             Ground truth image
-        @return: float
+        :return: float
             Pearson Correlation Coefficient
         """
 
@@ -96,9 +96,9 @@ class StructuralSimilarity(nn.Module):
         Generates a list of Tensor values drawn from a gaussian distribution with standard
         diviation = sigma and sum of all elements = 1.
 
-        @param window_size: 11 from the paper
-        @param sigma: standard deviation of Gaussian distribution
-        @return: list of values, length = window_size
+        :param window_size: 11 from the paper
+        :param sigma: standard deviation of Gaussian distribution
+        :return: list of values, length = window_size
         """
 
         gauss = torch.Tensor(
@@ -108,9 +108,9 @@ class StructuralSimilarity(nn.Module):
     def create_window(self, window_size, channel=1):
 
         """
-        @param window_size: 11 from the paper
-        @param channel: 3 for RGB images
-        @return: 4D window with size [channels, 1, window_size, window_size]
+        :param window_size: 11 from the paper
+        :param channel: 3 for RGB images
+        :return: 4D window with size [channels, 1, window_size, window_size]
 
         """
         # Generates an 1D tensor containing values sampled from a gaussian distribution.
@@ -127,14 +127,14 @@ class StructuralSimilarity(nn.Module):
         """
         Calculating Structural Similarity Index Measure
 
-        @param img1: torch.tensor
-        @param img2: torch.tensor
-        @param val_range: 255 for RGB images
-        @param window_size: 11 from the paper
-        @param window: created with create_window function
-        @param size_average: if True calculates the mean
-        @param full: if true, return result and contrast_metric
-        @return: value of SSIM
+        :param img1: torch.tensor
+        :param img2: torch.tensor
+        :param val_range: 255 for RGB images
+        :param window_size: 11 from the paper
+        :param window: created with create_window function
+        :param size_average: if True calculates the mean
+        :param full: if true, return result and contrast_metric
+        :return: value of SSIM
         """
         try:
             # data validation
@@ -210,16 +210,16 @@ def save_image(images_dir, outputs, ground_truth, number, idx_epoch, norm=False)
     """
     Function to save images during training
 
-    @param images_dir: directory where the images should be saved
-    @param outputs: torch.tensor [batch_size x channels x width x height]
+    :param images_dir: directory where the images should be saved
+    :param outputs: torch.tensor [batch_size x channels x width x height]
         Network outputs
-    @param ground_truth: torch.tensor [batch_size x channels x width x height]
+    :param ground_truth: torch.tensor [batch_size x channels x width x height]
         Ground truth images
-    @param number: integer
+    :param number: integer
         Number of images to save
-    @param idx_epoch: integer
+    :param idx_epoch: integer
         index of the epoch to include it in the caption
-    @return:
+    :return:
     """
     if norm:
         ground_truth = denormalize_image(ground_truth)
@@ -237,15 +237,15 @@ def evaluate(model, dataloader, norm=True, mean=None, std=None, mode=None, path=
     """
     Calculate metrics for the dataset specified with dataloader
 
-    @param model: network for evaluation
-    @param dataloader: DataLoader object
-    @param norm: normalization
-    @param mean: mean of the dataset
-    @param std: standard deviation of the dataset
-    @param mode: 'bold' or None
-    @param path: path to save images
-    @param save: True if save images, otherwise False
-    @return: mean PCC, mean SSIM, MSE, mean IS (inseption score)
+    :param model: network for evaluation
+    :param dataloader: DataLoader object
+    :param norm: normalization
+    :param mean: mean of the dataset
+    :param std: standard deviation of the dataset
+    :param mode: 'bold' or None
+    :param path: path to save images
+    :param save: True if save images, otherwise False
+    :return: mean PCC, mean SSIM, MSE, mean IS (inseption score)
     """
 
     pearson_correlation = PearsonCorrelation()
@@ -294,7 +294,6 @@ def evaluate(model, dataloader, norm=True, mean=None, std=None, mode=None, path=
     is_mean = is_mean / (batch_idx+1)
 
     return mean_pcc, mean_ssim, mse_loss, is_mean
-
 
 
 def inception_score(imgs, cuda=True, batch_size=32, resize=False, splits=1):
