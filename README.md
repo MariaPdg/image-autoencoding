@@ -34,7 +34,7 @@ data_root = 'datasets/'
 
 * [Validation set](http://images.cocodataset.org/zips/test2014.zip)
 
-Example directory: ```datasets/coco/[training_set]```
+Example directory: ```datasets/coco/coco_train2017/train2017/```
 
 ```python
 # COCO dataset
@@ -44,13 +44,13 @@ coco_valid_data = 'coco_valid2017/val2017'
 coco_test_data = 'coco_test2017/test2017'
 ```
 
-We use training and testing data for training. We allow to do this since VAE is trained in unsupervised manner. Evaluation is done with validation set.
+We use training and testing data for training. We allow to do this since VAE is trained in unsupervised manner. Evaluation is done with the validation set.
 
 ### Food-101
 
 * [Food-101](https://www.kaggle.com/dansbecker/food-101/download)
 
-Example directory: ```datasets/food-101/[images]```
+Example directory: ```datasets/food-101/images```
 
 ```python
 # FOOD-101 dataset
@@ -69,7 +69,7 @@ export PYTHONPATH=$PYTHONPATH:[absolute path to the folder]/image-autoencoding/
 2. Specify training parameters in ```train_config.py```, e.g.
 
   ```python
-  batch_size = 512
+  batch_size = 64
   learning_rate = 0.001
   weight_decay = 1e-7
   n_epochs = 100
@@ -88,14 +88,15 @@ python3 vae_train.py  -o [user path] -l [path to logs]
 
 * VAE is a widely used generative model, which is used in image reconstruction and generation tasks.
   It provides more efficient way (e.g. in comparison too PCA) to solve the dimensionality reduction problem for high dimensional data (e.g. text, images).
-  General VAE architecture is illustrated in Figure:
+  A general VAE architecture is illustrated in Figure:
   
-
+<p align="center">
 <img src="docs/vae.png" alt="vae" width="550"/>
+</p>
 
-* A disadvantage of a simple autoencoder that its latent space is discrete.
-  As a result, there are some points which the autoencoder can not reconstruct. VAE provides continuous latent space 
-  due to KL divergence which matches a prior distribution and a predicted encoder distribution.
+* A disadvantage of a simple autoencoder is its discrete latent space.
+  As a result, there are some points which the autoencoder can not reconstruct. VAE provides a continuous latent space 
+  due to KL divergence, which matches a prior distribution and a predicted encoder distribution (an approximate posterio). 
 
 * We use VAE with the  following decoder and encoder: 
     
@@ -106,35 +107,52 @@ python3 vae_train.py  -o [user path] -l [path to logs]
     - Center crop = 375;
     - Random Horizontal Flip;
     - Transform grey scale images to RGB image by channel replication;
-    - Normalization (standardization) with mean=[0.5,0.5,0.5] and std=[0.5,0.5,0.5];
+    - Normalization (standardization) with mean=[0.5,0.5,0.5] and std=[0.5,0.5,0.5] 
+      since we use Tanh aoutput activation function in the decoder.
+     
     
 * Latent dimension = 128
-* Batch size = 64 (512 for latent space visualization)
+* Batch size = 64 (512 for the latent space visualization)
   
 ### Loss function
 
 - VAE loss function represents the sum of the reconstruction error and KL divergence.
 
+- Generally the reconstruction error corresponds to the mean square error between a ground thruth image and a reconstructed image 
+  (here it is just a square error):
+  
+```python
+# reconstruction error
+mse = 0.5 * (x.view(len(x), -1) - x_tilde.view(len(x_tilde), -1)) ** 2
+```
+- KL divergence is calculated for the Gaussian encoder distribution:
+```
+# kl divergence
+kld = -0.5 * torch.sum(-variances.exp() - torch.pow(mus, 2) + variances + 1, 1)
+```
+
 - Since we use separate optimizers for the encoder and the decoder networks we calculate the following loss function:
 
 ```python
 if args.mode == 'vae':
-        loss_encoder = (1 / batch_size) * torch.sum(kld) + torch.sum(recon_mse)
-        # loss_encoder = torch.sum(kld) + torch.sum(recon_mse)
-        loss_decoder = torch.sum(args.lambda_mse * recon_mse)
+        loss_encoder = (1 / batch_size) * torch.sum(kld)
+        # loss_encoder = torch.sum(kld) 
+        loss_decoder = torch.sum(recon_mse)
 ```
-- We found that the use of the hyperparameter *lambda_mse* gives better reconstructions.
-- We use KL-divergence weighted with batch_size or not (in order to achieve a trade-off between two terms).
+- Encoder loss corresponds to the penalizer term, which pushed the approximate posterior to the prior.
+- Decoder loss corresponds to the reconstruction error. 
+- We use KL-divergence weighted with batch_size or not in order to achieve a trade-off between two terms.
+- We minimize the sum instead of mean values.
 
 ### Metrics
 
-There is a huge issue regarding evaluation of generative models. We have just evaluated the reconstructed images with 
+There is a huge issue regarding evaluation of generative models. We evaluated the reconstruction ability with 
 the common image similarity metrics:
 
 * Pearson corelation Coefficient (PCC)
 * Structural Similarity (SSIM)
 
-However they are not capable to capture human perception.
+However, they are not capable to capture human perception.
 
 ## Results 
 
@@ -164,14 +182,14 @@ Reconstruction from sampled latent representations:
 
 <img src="docs/img_3.png" alt="20 epoch latent" width="550"/>
 
-Since we use natural scenes which are the most difficult for unsupervised training the images generated from the latent space 
-are less meaningful in comparison to the models, which are trained with other more structural and uniform datasets, 
+Since we use natural scenes, which are the most difficult for unsupervised training, the images generated from the latent space 
+are less meaningful in comparison to the models trained with other more structural and uniform datasets, 
 e.g. widely used in related works CelebA dataset with faces, LSUN bedrooms etc. 
 
 
 ### FOOD-101
 
-Let's try tu use more uniform but smaller dataset FOOD-101. We also apply weight for KL divergence term.
+Let's try more uniform but smaller dataset FOOD-101. We also apply weight for KL divergence term.
 
 #### Ground truth images
 
@@ -220,13 +238,13 @@ Latent space for the test set (alpha=1):
 
 (It seems longer training is required for clusterization in the latent space.) 
 
-Now the generated images (from random latent vector) are more similar to food images. Weighted KL divergence leads to better reconstructions 
+Now the generated images (from random latent vector) are more similar to food images. The weighted KL divergence leads to better reconstructions 
 but the generated images  provide less information. 
 
 ## Conclusion
 
 In order to achieve better reconstructions the latent variables must stay away from each other. Otherwise, 
-they can coincide, as a consequence deteriorate the reconstructions. Therefore, we have to achieve trade-off between the 
+they may coincide, as a consequence deteriorate the reconstructions. Therefore, we have to achieve trade-off between the 
 reconstruction error and VAE penalizer, which pushes the encoder distribution to be similar to the prior latent distribution. 
 
 The VAE reconstructions are quite noisy. The reason is the lower dimension of the latent space comparing to the input images. 
