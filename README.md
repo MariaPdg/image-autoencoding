@@ -138,7 +138,9 @@ Reconstruction from sampled latent representations:
 
 Latent space for the test set (alpha=1):
 
-![img.png](docs/lat1.png)
+
+<img src="docs/lat1.png" alt="lat1" width="500"/>
+
 
 #### **10 training epochs:**
 
@@ -149,7 +151,9 @@ Reconstruction from sampled latent representations:
 
 <img src="docs/food4.png" alt="4" width="700"/>
 
-![img_3.png](docs/lat2.png)
+
+<img src="docs/lat2.png" alt="lat2" width="500"/>
+
 
 #### **20 training epochs:**
 
@@ -161,7 +165,7 @@ Reconstruction from sampled latent representations:
 
 Latent space for the test set (alpha=1):
 
-![img_2.png](docs/lat3.png)
+<img src="docs/lat3.png" alt="lat3" width="500"/>
 
 Now the generated images are more similar to food images. Weighted Kl divergence leads to better reconstructions 
 but the generated images  provide less information.  For clusterization in the latent space 
