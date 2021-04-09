@@ -1,8 +1,8 @@
 # image-autoencoding
 
 In this task we consider Variational Autoencoder (VAE) in order to reconstruct and generate images for two datasets:
-* [MS COCO](https://cocodataset.org/#download)
-* [Food-101](https://www.kaggle.com/dansbecker/food-101)
+* [MS COCO](https://cocodataset.org/#download) [1]
+* [Food-101](https://www.kaggle.com/dansbecker/food-101) [2]
 
 ## Project structure
 
@@ -44,7 +44,7 @@ coco_valid_data = 'coco_valid2017/val2017'
 coco_test_data = 'coco_test2017/test2017'
 ```
 
-We use training and testing data for training. We allow to do this since VAE is trained in unsupervised manner. Evaluation is done with the validation set.
+We use training and testing data to train the network. It is allowed since VAE is trained in an unsupervised manner. The evaluation is done with the validation set.
 
 ### Food-101
 
@@ -86,17 +86,20 @@ python3 vae_train.py  -o [user path] -l [path to logs]
    
 ## Solution description
 
-* VAE is a widely used generative model, which is used in image reconstruction and generation tasks.
-  It provides more efficient way (e.g. in comparison too PCA) to solve the dimensionality reduction problem for high dimensional data (e.g. text, images).
+* A disadvantage of a simple autoencoder is its discrete latent space. As a result, there are some points which the autoencoder can not reconstruct. 
+  
+* Variational autoencoder (VAE) [3] allows overcoming this problem. VAE is a generative model widely used in image reconstruction and generation tasks.
+  It provides a more efficient way (e.g. in comparison to PCA) to solve the dimensionality reduction problem for high dimensional data (e.g. text, images).
+  
+* VAE provides a continuous latent space due to KL divergence, which matches a prior normal distribution and a predicted encoder distribution (an approximate posterior). 
+
   A general VAE architecture is illustrated in Figure:
   
 <p align="center">
 <img src="docs/vae.png" alt="vae" width="550"/>
 </p>
 
-* A disadvantage of a simple autoencoder is its discrete latent space.
-  As a result, there are some points which the autoencoder can not reconstruct. VAE provides a continuous latent space 
-  due to KL divergence, which matches a prior distribution and a predicted encoder distribution (an approximate posterio). 
+* It consists of the encoder (or the recognition model) and the decoder (or the generative model). The encoder outputs construct a Gaussian distribution with the mean ![](https://latex.codecogs.com/gif.latex?%5Clarge%20%5Cmu) and the standard deviation ![](https://latex.codecogs.com/gif.latex?%5Clarge%20%5Csigma).
 
 * We use VAE with the  following decoder and encoder: 
     
@@ -113,6 +116,27 @@ python3 vae_train.py  -o [user path] -l [path to logs]
     
 * Latent dimension = 128
 * Batch size = 64 (512 for the latent space visualization)
+
+### Re-parametrization trick
+
+An optimization process requires a deterministic model rather than stochastic w.r.t. learnable parameters. Therefore, we have to re-parametrize the encoder outputs. Re-parametrization trick reads: ![](https://latex.codecogs.com/gif.latex?%5Clarge%20z%20%3D%20%5Cmu%20&plus;%20%5Csigma%20*%20%5Cepsilon), where 
+
+* ![](https://latex.codecogs.com/gif.latex?%5Clarge%20%5Cmu) and ![](https://latex.codecogs.com/gif.latex?%5Clarge%20%5Csigma) are encoder outputs, 
+* ![](https://latex.codecogs.com/gif.latex?%5Clarge%20%5Cepsilon) is the random variable. 
+
+The encoder returns ![](https://latex.codecogs.com/gif.latex?%5Clarge%20%5Clog%20%5Csigma%5E2) for numerical stability. We do the following for the re-parametrization:
+
+```python
+   def reparameterize(self, mu, logvar):
+
+    """ Re-parametrization trick"""
+
+    logvar = logvar.mul(0.5).exp_()
+    eps = Variable(logvar.data.new(logvar.size()).normal_())
+
+    return eps.mul(logvar).add_(mu)
+```
+
   
 ### Loss function
 
@@ -139,17 +163,19 @@ if args.mode == 'vae':
         # loss_encoder = torch.sum(kld) 
         loss_decoder = torch.sum(recon_mse)
 ```
-- Encoder loss corresponds to the penalizer term, which pushed the approximate posterior to the prior.
+- Encoder loss corresponds to the penalizer term, which pushed the approximate 
+to the prior.
 - Decoder loss corresponds to the reconstruction error. 
 - We use KL-divergence weighted with batch_size or not in order to achieve a trade-off between two terms.
 - We minimize the sum instead of mean values.
 
+
 ### Metrics
 
-There is a huge issue regarding evaluation of generative models. We evaluated the reconstruction ability with 
+There is a huge issue regarding the evaluation of generative models. We evaluated the reconstruction ability with 
 the common image similarity metrics:
 
-* Pearson corelation Coefficient (PCC)
+* Pearson Correlation Coefficient (PCC)
 * Structural Similarity (SSIM)
 
 However, they are not capable to capture human perception.
@@ -239,14 +265,45 @@ Latent space for the test set (alpha=1):
 (It seems longer training is required for clusterization in the latent space.) 
 
 Now the generated images (from random latent vector) are more similar to food images. The weighted KL divergence leads to better reconstructions 
-but the generated images  provide less information. 
+but the generated images provide less information. 
 
 ## Conclusion
 
-In order to achieve better reconstructions the latent variables must stay away from each other. Otherwise, 
-they may coincide, as a consequence deteriorate the reconstructions. Therefore, we have to achieve trade-off between the 
+In order to achieve better reconstructions, the latent variables must stay away from each other. Otherwise, 
+they may coincide, as a consequence deteriorate the reconstructions. Therefore, we have to achieve a trade-off between the 
 reconstruction error and VAE penalizer, which pushes the encoder distribution to be similar to the prior latent distribution. 
 
 The VAE reconstructions are quite noisy. The reason is the lower dimension of the latent space comparing to the input images. 
-Another reason is the sampling in the latent space. As a result, VAE penalizer pushes its reconstruction to the mean values of the latent representation
+Another reason is the sampling in the latent space. As a result, the VAE penalizer pushes its reconstruction to the mean values of the latent representation
 instead of the real values. 
+
+
+## References:
+```
+1. @misc{lin2015microsoft,
+      title={Microsoft COCO: Common Objects in Context}, 
+      author={Tsung-Yi Lin and Michael Maire and Serge Belongie and Lubomir Bourdev and Ross Girshick and James Hays and Pietro Perona and Deva Ramanan and C. Lawrence Zitnick and Piotr Dollár},
+      year={2015},
+      eprint={1405.0312},
+      archivePrefix={arXiv},
+      primaryClass={cs.CV}
+}
+```
+```
+2. @inproceedings{lee2017cleannet,
+  title={CleanNet: Transfer Learning for Scalable Image Classifier Training with Label Noise},
+  author={Lee, Kuang-Huei and He, Xiaodong and Zhang, Lei and Yang, Linjun},
+  booktitle={Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition ({CVPR})},
+  year={2018}
+}
+```
+```
+3. @misc{kingma2014autoencoding,
+      title={Auto-Encoding Variational Bayes}, 
+      author={Diederik P Kingma and Max Welling},
+      year={2014},
+      eprint={1312.6114},
+      archivePrefix={arXiv},
+      primaryClass={stat.ML}
+}
+```
