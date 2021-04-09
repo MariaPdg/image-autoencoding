@@ -76,7 +76,7 @@ if __name__ == "__main__":
     timestep = time.strftime("%Y%m%d-%H%M%S")
     logging.basicConfig(level=logging.INFO)
     logger = logging.getLogger()
-    file_handler = logging.FileHandler(os.path.join(args.logs, 'train_gan_' + timestep))
+    file_handler = logging.FileHandler(os.path.join(args.logs, 'train_vae_' + timestep))
     logger = logging.getLogger()
     file_handler.setLevel(logging.INFO)
     logger.addHandler(file_handler)
@@ -90,14 +90,14 @@ if __name__ == "__main__":
 
     # Create directory for results
     if DEBUG:
-        saving_dir = os.path.join(SAVE_PATH, 'debug', 'debug_gan_{}'.format(timestep))
+        saving_dir = os.path.join(SAVE_PATH, 'debug', 'debug_vae_{}'.format(timestep))
     else:
-        saving_dir = os.path.join(SAVE_PATH, 'gan', 'gan_{}'.format(timestep))
+        saving_dir = os.path.join(SAVE_PATH, 'vae', 'vae_{}'.format(timestep))
     if not os.path.exists(saving_dir):
         os.makedirs(saving_dir)
     if args.pretrained_gan is not None:
-        pretrained_model_dir = os.path.join(SAVE_PATH, 'gan', args.pretrained_gan, args.pretrained_gan + '.pth')
-    saving_name = os.path.join(saving_dir, 'gan_{}.pth'.format(timestep))
+        pretrained_model_dir = os.path.join(SAVE_PATH, 'vae', args.pretrained_gan, args.pretrained_gan + '.pth')
+    saving_name = os.path.join(saving_dir, 'vae_{}.pth'.format(timestep))
 
     # Save arguments
     with open(os.path.join(saving_dir, 'config.txt'), 'w') as f:
@@ -295,9 +295,9 @@ if __name__ == "__main__":
 
             # VAE loss
             if args.mode == 'vae':
-                loss_encoder = (1 / batch_size) * torch.sum(kld) + torch.sum(recon_mse)
+                loss_encoder = (1 / batch_size) * torch.sum(kld)
                 # loss_encoder = torch.sum(kld) + torch.sum(recon_mse)
-                loss_decoder = torch.sum(args.lambda_mse * recon_mse)
+                loss_decoder = torch.sum(recon_mse)
 
             # Register mean values
             loss_encoder_mean = loss_encoder.data.cpu().numpy() / batch_size
