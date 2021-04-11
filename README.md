@@ -192,6 +192,25 @@ the common image similarity metrics:
 
 However, they are not capable to capture human perception.
 
+### Latent space
+
+We visualized latent space only for training with *Food-101* dataset. To do this we transform labels to numbers in the dataloader:
+```python
+from sklearn import preprocessing
+
+ # Transform labels to numbers
+le = preprocessing.LabelEncoder()
+le.fit(self.labels)
+self.labels = le.transform(self.labels)
+```
+Then we use *scatter plot* during training (for training and validation sets):
+```python
+# Visualize latent space for training set
+plt.figure(figsize=(10, 6))
+plt.scatter(mus.cpu().detach()[..., 0], mus.cpu().detach()[..., 1], c=labels, cmap='rainbow')
+plt.colorbar()
+```
+
 ## Results 
 
 ### MS COCO
