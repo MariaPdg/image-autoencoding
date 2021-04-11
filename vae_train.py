@@ -26,7 +26,7 @@ numpy.random.seed(8)
 torch.manual_seed(8)
 torch.cuda.manual_seed(8)
 
-DEBUG = True
+DEBUG = False  # if True results will be saved in 'debug' folder
 
 if __name__ == "__main__":
 
@@ -127,7 +127,6 @@ if __name__ == "__main__":
                                                                                             gan_cfg.std)
                                                                        ]))
 
-        # Load data
         validation_data = Food101Dataloader(FOOD_IMAGES, test_image_names,
                                          transform=transforms.Compose([transforms.CenterCrop((args.image_crop,
                                                                                               args.image_crop)),
@@ -151,16 +150,16 @@ if __name__ == "__main__":
 
         # Load data
         training_data = CocoDataloader(COCO_TRAIN_DATA,
-                                         transform=transforms.Compose([transforms.CenterCrop((args.image_crop,
-                                                                                              args.image_crop)),
-                                                                       transforms.Resize((args.image_size,
-                                                                                          args.image_size)),
-                                                                       transforms.RandomHorizontalFlip(),
-                                                                       transforms.ToTensor(),
-                                                                       GreyToColor(args.image_size),
-                                                                       transforms.Normalize(gan_cfg.mean,
+                                       transform=transforms.Compose([transforms.CenterCrop((args.image_crop,
+                                                                                            args.image_crop)),
+                                                                     transforms.Resize((args.image_size,
+                                                                                        args.image_size)),
+                                                                     transforms.RandomHorizontalFlip(),
+                                                                     transforms.ToTensor(),
+                                                                     GreyToColor(args.image_size),
+                                                                     transforms.Normalize(gan_cfg.mean,
                                                                                             gan_cfg.std)
-                                                                       ]))
+                                                                     ]))
         validation_data = CocoDataloader(COCO_VALID_DATA,
                                          transform=transforms.Compose([transforms.CenterCrop((args.image_crop,
                                                                                               args.image_crop)),
@@ -172,16 +171,17 @@ if __name__ == "__main__":
                                                                                             gan_cfg.std)
                                                                        ]))
         test_data = CocoDataloader(COCO_TEST_DATA,
-                                         transform=transforms.Compose([transforms.CenterCrop((args.image_crop,
-                                                                                              args.image_crop)),
-                                                                       transforms.Resize((args.image_size,
+                                   transform=transforms.Compose([transforms.CenterCrop((args.image_crop,
+                                                                                        args.image_crop)),
+                                                                 transforms.Resize((args.image_size,
                                                                                           args.image_size)),
-                                                                       transforms.RandomHorizontalFlip(),
-                                                                       transforms.ToTensor(),
-                                                                       GreyToColor(args.image_size),
-                                                                       transforms.Normalize(gan_cfg.mean,
-                                                                                            gan_cfg.std)
-                                                                       ]))
+                                                                 transforms.RandomHorizontalFlip(),
+                                                                 transforms.ToTensor(),
+                                                                 GreyToColor(args.image_size),
+                                                                 transforms.Normalize(gan_cfg.mean,
+                                                                                      gan_cfg.std)
+                                                                 ]))
+
         train_test_data = ConcatDataset([training_data, test_data])
 
         dataloader_train = DataLoader(train_test_data, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers)
@@ -198,6 +198,7 @@ if __name__ == "__main__":
 
     if args.pretrained_gan is not None and os.path.exists(pretrained_model_dir.replace(".pth", ".csv")):
 
+        # We can continue training
         logging.info('Load pretrained model')
         model_dir = pretrained_model_dir.replace(".pth", '_{}.pth'.format(args.load_epoch))
         model.load_state_dict(torch.load(model_dir))
@@ -226,7 +227,7 @@ if __name__ == "__main__":
         loss_decoder=[]
     )
 
-    # An optimizer for each of the sub-networks, so we can selectively backprop
+    # An optimizer for each of the sub-networks, so we can selectively backpropogate
     optimizer_encoder = torch.optim.RMSprop(params=model.encoder.parameters(), lr=args.learning_rate, alpha=0.9,
                                             eps=1e-8, weight_decay=0, momentum=0, centered=False)
     lr_encoder = ExponentialLR(optimizer_encoder, gamma=args.decay_lr)

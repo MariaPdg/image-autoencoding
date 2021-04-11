@@ -3,7 +3,6 @@ import math
 import torch
 import torchvision
 import torch.nn.functional as F
-import matplotlib.pyplot as plt
 
 from torch import nn, no_grad
 from torch.autograd import Variable
@@ -205,34 +204,6 @@ class StructuralSimilarity(nn.Module):
         return result
 
 
-def save_image(images_dir, outputs, ground_truth, number, idx_epoch, norm=False):
-
-    """
-    Function to save images during training
-
-    :param images_dir: directory where the images should be saved
-    :param outputs: torch.tensor [batch_size x channels x width x height]
-        Network outputs
-    :param ground_truth: torch.tensor [batch_size x channels x width x height]
-        Ground truth images
-    :param number: integer
-        Number of images to save
-    :param idx_epoch: integer
-        index of the epoch to include it in the caption
-    :return:
-    """
-    if norm:
-        ground_truth = denormalize_image(ground_truth)
-        outputs = denormalize_image(outputs)
-    for idx in range(number):
-        plt.imshow(ground_truth.permute(0, 2, 3, 1)[idx].cpu().detach().numpy())
-        gt_dir = os.path.join(images_dir, 'epoch_' + str(idx_epoch) + '_ground_truth_' + str(idx))
-        plt.savefig(gt_dir)
-        plt.imshow(outputs.permute(0, 2, 3, 1)[idx].cpu().detach().numpy())
-        output_dir = os.path.join(images_dir, 'epoch_' + str(idx_epoch) + '_output_' + str(idx))
-        plt.savefig(output_dir)
-
-
 def evaluate(model, dataloader, norm=True, mean=None, std=None, mode=None, path=None, save=False, resize=None):
     """
     Calculate metrics for the dataset specified with dataloader
@@ -245,7 +216,8 @@ def evaluate(model, dataloader, norm=True, mean=None, std=None, mode=None, path=
     :param mode: 'bold' or None
     :param path: path to save images
     :param save: True if save images, otherwise False
-    :return: mean PCC, mean SSIM, MSE, mean IS (inseption score)
+    :param resize: image size to save
+    :return: mean PCC, mean SSIM, MSE, mean IS (inception score)
     """
 
     pearson_correlation = PearsonCorrelation()
@@ -286,7 +258,7 @@ def evaluate(model, dataloader, norm=True, mean=None, std=None, mode=None, path=
         pcc += pearson_correlation(out, data_target)
         ssim += structural_similarity(out, data_target)
         mse += mse_loss(out, data_target)
-        # is_mean += inception_score(out, resize=True)
+        is_mean += inception_score(out, resize=True)
 
     mean_pcc = pcc / (batch_idx+1)
     mean_ssim = ssim / (batch_idx+1)
@@ -312,7 +284,6 @@ def inception_score(imgs, cuda=True, batch_size=32, resize=False, splits=1):
     N = len(imgs)
 
     assert batch_size > 0
-    assert N > batch_size
 
     # Set up dtype
     if cuda:

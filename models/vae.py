@@ -46,9 +46,11 @@ class DecoderBlock(nn.Module):
         self.bn = nn.BatchNorm2d(channel_out, momentum=0.9)
 
     def forward(self, ten):
+
         ten = self.conv(ten)
         ten = self.bn(ten)
         ten = F.relu(ten, True)
+
         return ten
 
 
@@ -157,7 +159,7 @@ class VAE(nn.Module):
                 if hasattr(m, "bias") and m.bias is not None and m.bias.requires_grad:
                     nn.init.constant(m.bias, 0.0)
 
-    def reparameterize(self, mu, logvar):
+    def reparametrize(self, mu, logvar):
 
         """ Re-parametrization trick"""
 
@@ -172,19 +174,16 @@ class VAE(nn.Module):
             x = Variable(x).to(self.device)
 
         if self.training:
-
             mus, log_variances = self.encoder(x)
-            z = self.reparameterize(mus, log_variances)
+            z = self.reparametrize(mus, log_variances)
             x_tilde = self.decoder(z)
 
             # generate from random latent variable
             z_p = Variable(torch.randn(len(x), self.z_size).to(self.device), requires_grad=True)
             x_p = self.decoder(z_p)
-
             return x_tilde, x_p, mus, log_variances, z_p
 
         else:
-
             if x is None:
                 z_p = Variable(torch.randn(gen_size, self.z_size).to(self.device), requires_grad=False)
                 x_p = self.decoder(z_p)
@@ -192,7 +191,7 @@ class VAE(nn.Module):
 
             else:
                 mus, log_variances = self.encoder(x)
-                z = self.reparameterize(mus, log_variances)
+                z = self.reparametrize(mus, log_variances)
                 x_tilde = self.decoder(z)
                 return x_tilde
 
