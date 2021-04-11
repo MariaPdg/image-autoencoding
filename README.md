@@ -18,9 +18,11 @@ In this task we consider Variational Autoencoder (VAE) in order to reconstruct a
 
 ## Data setup
 
-Specify data directories in ```configs/data_config.py```
+* Specify data directories in ```configs/data_config.py```
 
-Data should have the same data root: 
+* Use settings either for MS COCO dataset or Food-101
+
+* Data should have the same data root: 
 ```python
 # root where datasets are located (might be home directory)
 data_root = 'datasets/'
@@ -66,7 +68,13 @@ meta_data = 'meta'
 ```
 export PYTHONPATH=$PYTHONPATH:[absolute path to the folder]/image-autoencoding/
 ```
-2. Specify training parameters in ```train_config.py```, e.g.
+2. Specify path to save the results in ```data_congifs.py```:
+
+```# path where save the results
+save_training_results = 'results/'
+```
+
+3. Specify training parameters in ```train_config.py```, e.g.
 
   ```python
   batch_size = 64
@@ -75,7 +83,7 @@ export PYTHONPATH=$PYTHONPATH:[absolute path to the folder]/image-autoencoding/
   n_epochs = 100
   ```
 
-2. Start training ```vae_train.py```
+4. Start training ```vae_train.py```
 
 ```
 python3 vae_train.py  -o [user path] -l [path to logs]
@@ -83,13 +91,17 @@ python3 vae_train.py  -o [user path] -l [path to logs]
   Flags:
   * ``` -o [user_path]``` user path to save the results
   * ``` -l [path to logs]``` path to save logs
-   
+
+5. The results will be saved in the folder: ```../[save_training_results]/vae/``` 
+
+
 ## Solution description
 
-* A disadvantage of a simple autoencoder is its discrete latent space. As a result, there are some points which the autoencoder can not reconstruct. 
+* Variational autoencoder (VAE) [3] is a generative model widely used in image reconstruction and generation tasks.
+  It provides a more efficient way (e.g. in comparison to a standard autoencoder, PCA) to solve the dimensionality reduction problem for high dimensional data (e.g. text, images).
   
-* Variational autoencoder (VAE) [3] allows overcoming this problem. VAE is a generative model widely used in image reconstruction and generation tasks.
-  It provides a more efficient way (e.g. in comparison to PCA) to solve the dimensionality reduction problem for high dimensional data (e.g. text, images).
+* A disadvantage of a simple autoencoder is its discrete latent space. As a result, there are some points which the autoencoder can not reconstruct. 
+  VAE allows overcoming this problem. 
   
 * VAE provides a continuous latent space due to KL divergence, which matches a prior normal distribution and a predicted encoder distribution (an approximate posterior). 
 
@@ -99,7 +111,7 @@ python3 vae_train.py  -o [user path] -l [path to logs]
 <img src="docs/vae.png" alt="vae" width="550"/>
 </p>
 
-* It consists of the encoder (or the recognition model) and the decoder (or the generative model). The encoder outputs construct a Gaussian distribution with the mean ![](https://latex.codecogs.com/gif.latex?%5Clarge%20%5Cmu) and the standard deviation ![](https://latex.codecogs.com/gif.latex?%5Clarge%20%5Csigma).
+* It consists of an encoder (or a recognition model) and a decoder (or a generative model). The encoder outputs construct a Gaussian distribution with the mean ![](https://latex.codecogs.com/gif.latex?%5Clarge%20%5Cmu) and the standard deviation ![](https://latex.codecogs.com/gif.latex?%5Clarge%20%5Csigma).
 
 * We use VAE with the  following decoder and encoder: 
     
@@ -111,7 +123,7 @@ python3 vae_train.py  -o [user path] -l [path to logs]
     - Random Horizontal Flip;
     - Transform grey scale images to RGB image by channel replication;
     - Normalization (standardization) with mean=[0.5,0.5,0.5] and std=[0.5,0.5,0.5] 
-      since we use Tanh aoutput activation function in the decoder.
+      since we use Tanh output activation function in the decoder.
      
     
 * Latent dimension = 128
@@ -127,7 +139,7 @@ An optimization process requires a deterministic model rather than stochastic w.
 The encoder returns ![](https://latex.codecogs.com/gif.latex?%5Clarge%20%5Clog%20%5Csigma%5E2) for numerical stability. We do the following for the re-parametrization:
 
 ```python
-   def reparameterize(self, mu, logvar):
+   def reparametrize(self, mu, logvar):
 
     """ Re-parametrization trick"""
 
@@ -140,7 +152,7 @@ The encoder returns ![](https://latex.codecogs.com/gif.latex?%5Clarge%20%5Clog%2
   
 ### Loss function
 
-- VAE loss function represents the sum of the reconstruction error and KL divergence.
+- A VAE loss function represents the sum of a reconstruction error and KL divergence.
 
 - Generally the reconstruction error corresponds to the mean square error between a ground thruth image and a reconstructed image 
   (here it is just a square error):
@@ -163,7 +175,7 @@ if args.mode == 'vae':
         # loss_encoder = torch.sum(kld) 
         loss_decoder = torch.sum(recon_mse)
 ```
-- Encoder loss corresponds to the penalizer term, which pushed the approximate 
+- Encoder loss corresponds to the penalizer term, which pushes the approximate posterior
 to the prior.
 - Decoder loss corresponds to the reconstruction error. 
 - We use KL-divergence weighted with batch_size or not in order to achieve a trade-off between two terms.
@@ -172,7 +184,7 @@ to the prior.
 
 ### Metrics
 
-There is a huge issue regarding the evaluation of generative models. We evaluated the reconstruction ability with 
+There is a huge issue in the existing literature regarding the evaluation of generative models. We evaluated the reconstruction ability with 
 the common image similarity metrics:
 
 * Pearson Correlation Coefficient (PCC)
@@ -208,9 +220,9 @@ Reconstruction from sampled latent representations:
 
 <img src="docs/img_3.png" alt="20 epoch latent" width="550"/>
 
-Since we use natural scenes, which are the most difficult for unsupervised training, the images generated from the latent space 
-are less meaningful in comparison to the models trained with other more structural and uniform datasets, 
-e.g. widely used in related works CelebA dataset with faces, LSUN bedrooms etc. 
+Since we use natural scenes, which are the most difficult for unsupervised training, the images generated 
+from the random samples in the latent space are less meaningful in comparison to the models trained with other 
+more structural and uniform datasets, e.g. widely used in related works CelebA dataset with faces, LSUN bedrooms etc. 
 
 
 ### FOOD-101
@@ -270,8 +282,8 @@ but the generated images provide less information.
 ## Conclusion
 
 In order to achieve better reconstructions, the latent variables must stay away from each other. Otherwise, 
-they may coincide, as a consequence deteriorate the reconstructions. Therefore, we have to achieve a trade-off between the 
-reconstruction error and VAE penalizer, which pushes the encoder distribution to be similar to the prior latent distribution. 
+they may coincide, as a consequence deteriorate the reconstructions. We have to achieve a trade-off between the 
+reconstruction error and the VAE penalizer, which pushes the encoder distribution to be similar to the prior latent distribution. 
 
 The VAE reconstructions are quite noisy. The reason is the lower dimension of the latent space comparing to the input images. 
 Another reason is the sampling in the latent space. As a result, the VAE penalizer pushes its reconstruction to the mean values of the latent representation
@@ -307,3 +319,4 @@ instead of the real values.
       primaryClass={stat.ML}
 }
 ```
+4. GitHub repository: https://github.com/lucabergamini/VAEGAN-PYTORCH
